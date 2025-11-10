@@ -1,9 +1,1 @@
-🧾 Explanation (What this code does)
- 
-Step	                              Function
-1️⃣	                   Loads Faster R-CNN pre-trained model from torchvision
-2️⃣	                   Reads each frame of the input video using OpenCV
-3️⃣                    Detects vehicles and draws bounding boxes
-4️⃣	                   Tracks the movement of each vehicle across frames
-5️⃣	                   Calculates speed (based on frame difference × FPS × scale)
-6️⃣                    Displays the vehicle speed live on the video feed
+
