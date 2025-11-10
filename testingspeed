@@ -1,0 +1,92 @@
+import cv2 # type: ignore
+import torch # type: ignore
+import numpy as np
+from torchvision import models, transforms # type: ignore
+from collections import deque
+
+# -----------------------------------
+# Load Pre-trained Faster R-CNN Model
+# -----------------------------------
+print("🔹 Loading Faster R-CNN model...")
+model = models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+model.eval()
+print("✅ Model loaded successfully!")
+
+# -----------------------------------
+# Video Input (Use webcam or file)
+# -----------------------------------
+# For webcam: use 0
+# For video file: replace 'video.mp4' with your file path
+cap = cv2.VideoCapture(0)
+
+if not cap.isOpened():
+    print("❌ Error: Could not open video source.")
+    exit()
+
+# -----------------------------------
+# Setup Parameters
+# -----------------------------------
+fps = cap.get(cv2.CAP_PROP_FPS) or 30  # Frames per second
+distance_per_pixel = 0.05  # meters per pixel (adjust based on camera position)
+track_history = {}
+max_history = 5  # store last few positions
+
+transform = transforms.Compose([
+    transforms.ToTensor()
+])
+
+# -----------------------------------
+# Detection Loop
+# -----------------------------------
+print("🚀 Starting Vehicle Speed Detection... Press 'Q' to stop.")
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print("⚠️ End of video or capture error.")
+        break
+
+    # Convert frame to tensor
+    image_tensor = transform(frame).unsqueeze(0)
+
+    # Run detection
+    with torch.no_grad():
+        predictions = model(image_tensor)
+
+    boxes = predictions[0]['boxes'].cpu().numpy()
+    scores = predictions[0]['scores'].cpu().numpy()
+    labels = predictions[0]['labels'].cpu().numpy()
+
+    for i, box in enumerate(boxes):
+        if scores[i] > 0.7 and labels[i] in [3, 6, 8]:  # 3-car, 6-bus, 8-truck
+            x1, y1, x2, y2 = map(int, box)
+            cx = int((x1 + x2) / 2)
+            cy = int((y1 + y2) / 2)
+
+            vehicle_id = i
+            if vehicle_id not in track_history:
+                track_history[vehicle_id] = deque(maxlen=max_history)
+            track_history[vehicle_id].append((cx, cy))
+
+            # Speed estimation
+            if len(track_history[vehicle_id]) >= 2:
+                (x_prev, y_prev) = track_history[vehicle_id][-2]
+                distance_pixels = np.sqrt((cx - x_prev) ** 2 + (cy - y_prev) ** 2)
+                distance_meters = distance_pixels * distance_per_pixel
+                speed_mps = distance_meters * fps
+                speed_kmph = speed_mps * 3.6
+
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(frame, f"{speed_kmph:.1f} km/h", (x1, y1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+            else:
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+    cv2.imshow("Vehicle Speed Detection", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+print("✅ Detection stopped.")
