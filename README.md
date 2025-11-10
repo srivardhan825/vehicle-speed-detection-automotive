@@ -16,3 +16,11 @@ The Vehicle Speed Detection for Automotive project leverages computer vision and
 - TensorFlow / PyTorch  
 - NumPy / Pandas  
 - Matplotlib  
+
+💡 Explanation:
+Library	Purpose
+torch	Core PyTorch deep learning library
+torchvision	For pretrained Faster R-CNN and transforms
+opencv-python	For video and image processing
+numpy	For mathematical operations (like distance & speed)
+matplotlib	Optional, for visual debugging or
